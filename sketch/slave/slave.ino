@@ -17,12 +17,12 @@
 
 //speed
 #define LOW_SPEED 40
-#define HIGH_SPEED 50
+#define HIGH_SPEED 60
 #define EXTREME_SPEED 100
 #define MEDIUM_SPEED (LOW_SPEED+HIGH_SPEED)/2
 
 //colour sensing
-#define LINETHRESHOLD 100
+#define LINETHRESHOLD 500
 //it is the minimum value returned from the reflectance sensor when the floor is black
 
 //numbers of loops that each movement takes
@@ -47,7 +47,7 @@ byte steps_on_menu;
 enum state_type {
   MENU_WALKING,
   MENU_REACHING,
-  LINE_CROSSING,
+  SCARING,
   LINE_REACHING,
   LINE_FOLLOWING
 };
@@ -113,6 +113,7 @@ turn_movement_type turn_direction;
 straight_movement_type straight_direction;
 
 state_type state;
+state_type previous_state;
 
 bool there_is_someone;
 
@@ -160,39 +161,42 @@ void setup() {
 
 void loop() {
   now = millis();
-
-  //*********************************************
-  // IR SENSING - start
-  //*********************************************
-  if (now - ir_sensing_timer > IR_SENSE_INTERVAL) {
-    Serial.println("Sense:");
-    ir_sensing_timer = now;
-    if (ir_recv.decode(&results)) {
-      Serial.println("PACKET:");
-      Serial.println(HEX, results.value);
-      if (results.value == PEOPLE_PACKET) {
-        if (state ==  MENU_WALKING)
-          state = LINE_CROSSING;
-
-        Serial.println("There's someone!");
-      }
-      else if (results.value == NO_PEOPLE_PACKET) {
-        //No one wants to see the menu
-        Serial.println("No one...");
-        if (state == LINE_FOLLOWING)
-          state = MENU_REACHING;
-      }
-    }
-
-    //The resume allow the sensor to sense another time
-    ir_recv.resume();
-  }
-  //*********************************************
-  // IR SENSING - end
-  //*********************************************
   /*
-    //SIMULATION OF PEOPLE (IR_SENSOR)
+    //*********************************************
+    // IR SENSING - start
+    //*********************************************
     if (now - ir_sensing_timer > IR_SENSE_INTERVAL) {
+      Serial.println("Sense:");
+      ir_sensing_timer = now;
+      if (ir_recv.decode(&results)) {
+        Serial.println("PACKET:");
+        Serial.println(HEX, results.value);
+        if (results.value == PEOPLE_PACKET) {
+          if (state ==  MENU_WALKING){
+            previous_state = MENU_WALKING;
+            state = SCARING;
+          }
+          Serial.println("There's someone!");
+        }
+        else if (results.value == NO_PEOPLE_PACKET) {
+          //No one wants to see the menu
+          Serial.println("No one...");
+          if (state == LINE_FOLLOWING){
+            previous_state = LINE_FOLLOWING;
+            state = MENU_REACHING;
+          }
+        }
+      }
+
+      //The resume allow the sensor to sense another time
+      ir_recv.resume();
+    }
+    //*********************************************
+    // IR SENSING - end
+    //*********************************************
+  */
+  //SIMULATION OF PEOPLE (IR_SENSOR)
+  if (now - ir_sensing_timer > IR_SENSE_INTERVAL) {
     ir_sensing_timer = now;
     if (there_is_someone) {
       there_is_someone = false;
@@ -202,20 +206,24 @@ void loop() {
       there_is_someone = true;
       Serial.println("THERE'S SOMEONE!");
     }
-    }
+  }
 
-    if (there_is_someone) {
-    if (state ==  MENU_WALKING)
-      state = LINE_CROSSING;
+  if (there_is_someone) {
+    if (state ==  MENU_WALKING) {
+      previous_state = MENU_WALKING;
+      state = SCARING;
     }
-    else {
-    if (state == LINE_FOLLOWING)
+  }
+  else {
+    if (state == LINE_FOLLOWING) {
+      previous_state = LINE_FOLLOWING;
       state = MENU_REACHING;
     }
+  }
 
-    //Just for testing
-    //state = LINE_FOLLOWING;
-  */
+  //Just for testing
+  //state = LINE_FOLLOWING;
+
 
   //the state of the robot must be modified only in this switch
   switch (state) {
@@ -234,12 +242,16 @@ void loop() {
           Serial.println(steps_beyond_the_line);
         }
       }
-      if (steps_beyond_the_line == 4 ) {
+      if (steps_beyond_the_line == 3) {
         //reset the line reaching variables
         start_to_count = false;
         steps_beyond_the_line = 0;
 
-        state = MENU_WALKING;
+        previous_state = MENU_REACHING;
+        if (previous_state == LINE_REACHING)
+          state = LINE_FOLLOWING;
+        else
+          state = MENU_WALKING;
       }
       break;
 
@@ -248,35 +260,18 @@ void loop() {
       menu_walking();
       break;
 
-    case LINE_CROSSING:
-      Serial.println("LINE_CROSSING");
-      if (reach_the_line(STRAIGHT)) {
-        //init the line reaching variables
-        start_to_count = true;
-        steps_beyond_the_line = 0;
-      }
-
-      if (start_to_count) {
-        if (!reach_the_line(STRAIGHT)) {
-          steps_beyond_the_line++;
-          Serial.print("START TO COUNT - STEP #");
-          Serial.println(steps_beyond_the_line);
-        }
-      }
-
-      if (steps_beyond_the_line == 3 ) {
-        //reset the line reaching variables
-        start_to_count = false;
-        steps_beyond_the_line = 0;
-
-        state = LINE_REACHING;
-      }
+    case SCARING:
+      Serial.println("SCARING");
+      shell_popup();
+      previous_state = SCARING;
+      state = LINE_REACHING;
       break;
-
+      
     case LINE_REACHING:
       Serial.println("LINE_REACHING");
-      if (reach_the_line(SPIN)) {
-        state = LINE_FOLLOWING;
+      if (reach_the_line(STRAIGHT)) {
+        previous_state = LINE_REACHING;
+        state = MENU_REACHING;
       }
       break;
 
@@ -451,7 +446,7 @@ bool obstacle()
 
 color_type get_colour()
 {
-  byte val = analogRead(LINESENSOR_PIN);
+  float val = analogRead(LINESENSOR_PIN);
   Serial.print("LINE SENSOR: ");
   Serial.println(val);
   if (val > LINETHRESHOLD)
@@ -518,6 +513,10 @@ bool reach_the_menu() {
   return menu_reached;
 }
 
+void shell_popup(){
+  //something similar to sweep
+}
+
 //It returns true if the robot has reached the black line, otherwise false
 bool reach_the_line(movement_type type_of_movement) {
   bool line_reached;
@@ -551,45 +550,23 @@ bool reach_the_line(movement_type type_of_movement) {
 }
 
 void follow_the_line() {
-  cal_pid();
-  pid_turn();
-}
 
-//It calculates position[set point] depending on KP
-void cal_pid() {
-  error_value = (analogRead(LINESENSOR_PIN) - LINE_FOLLOWING_SET_POINT);
-}
-
-//It computes the error to be corrected and sets the motors speeds
-void pid_turn() {
-  if (error_value < -1) {
-    error_value = -MEDIUM_SPEED;
-  }
-  if (error_value > 0) {
-    error_value = MEDIUM_SPEED;
-  }
-
-  // If error_value is less than -1 calculate right turn speed values, otherwise calculate left turn values
-  if (error_value < -1) {
-    speeds[0] = (-1) * error_value;
+  if (get_colour() == BLACK) {
+    speeds[0] = LOW_SPEED;
     speeds[1] = 0;
     type_of_steering = TO_THE_LEFT;
+    Serial.println("steering left...");
   }
   else {
     speeds[0] = 0;
-    speeds[1] = error_value;
+    speeds[1] = LOW_SPEED;
     type_of_steering = TO_THE_RIGHT;
+    Serial.println("steering right...");
+
   }
   movement = TURN;
   turn_direction = TURN_FORWARD;
-  Serial.print("error_value: : ");
-  Serial.println(error_value);
 
-
-  if (type_of_steering == TO_THE_LEFT)
-    Serial.println("steering left...");
-  else
-    Serial.println("steering right...");
 }
 
 void menu_walking() {
@@ -604,9 +581,9 @@ void menu_walking() {
   //****************************************************************************************************************
   if (now - region_timer < BLACK_LINE_SPIN_INTERVAL) {
     //region avoiding...
-    //movement = SPIN;
-    //spin_direction = chosen_spin_direction;
-    movement = TURN;
+    movement = SPIN;
+    spin_direction = chosen_spin_direction;
+    //movement = TURN;
     turn_direction = TURN_BACKWARD;
     speeds[0] = LOW_SPEED;
     speeds[1] = HIGH_SPEED;
