@@ -35,6 +35,7 @@
 
 //IR communication
 #define IR_SENSE_INTERVAL 20000           //time frequence used to sense the infrareds
+
 #define PEOPLE_PACKET 0xE0E0906F        //packet received everytime a person approaches
 #define NO_PEOPLE_PACKET 0xE0E0906A        //packet received everytime a person goes away
 
@@ -85,6 +86,7 @@ enum turn_movement_type {
 
 Servo servo;
 
+
 //***********************
 // INFRARED SENSOR - start
 IRrecv ir_recv(IR_PIN);
@@ -110,6 +112,7 @@ steering_type type_of_steering;
 float speeds[2];
 spin_movement_type spin_direction, chosen_spin_direction;
 turn_movement_type turn_direction;
+
 straight_movement_type straight_direction;
 
 state_type state;
@@ -119,7 +122,6 @@ bool there_is_someone;
 //Error used in the line following
 float error_value;
 
-
 //menu reaching variables
 byte steps_beyond_the_line;
 byte steps_on_the_line;
@@ -127,6 +129,7 @@ color_type colour;
 bool start_to_count;
 
 int pos = 0;    // variable to store the servo position
+
 
 
 void setup() {
@@ -155,6 +158,7 @@ void setup() {
   set_random_values();
 
   servo.attach(SERVO_PIN);
+  //servo.attach(SERVO_PIN);
 
 }
 
@@ -217,6 +221,7 @@ void loop() {
     //state = LINE_FOLLOWING;
   */
 
+
   //the state of the robot must be modified only in this switch
   switch (state) {
 
@@ -241,6 +246,7 @@ void loop() {
 
         state = MENU_WALKING;
       }
+
       break;
 
     case MENU_WALKING:
@@ -278,6 +284,7 @@ void loop() {
       if (reach_the_line(SPIN)) {
         state = LINE_FOLLOWING;
       }
+
       break;
 
     case LINE_FOLLOWING:
@@ -285,7 +292,6 @@ void loop() {
       follow_the_line();
       break;
   }
-
   Serial.print("RIGHT: ");
   Serial.println(speeds[0]);
   Serial.print("LEFT: ");
@@ -301,6 +307,7 @@ void loop() {
       delay(15);                       // waits 15ms for the servo to reach the position
     }
   */
+
 }
 
 //It returns true if the the robot has moved for a specific amount of time (i.e. interval).
@@ -371,11 +378,13 @@ void set_random_values() {
       }
       break;
   }
+
 }
 
 
 //It moves the robot according to the parameters.
 void move(byte speed1, byte speed2, straight_movement_type straight_direction, spin_movement_type spin_direction, turn_movement_type turn_direction, movement_type type)
+
 {
   switch (type) {
 
@@ -385,6 +394,7 @@ void move(byte speed1, byte speed2, straight_movement_type straight_direction, s
 
     case TURN:
       turn (speed1, speed2, turn_direction);
+
       break;
 
     case SPIN:
@@ -422,6 +432,7 @@ void turn(byte right_speed, byte left_speed, bool direction)
   //set direction motor 2
   digitalWrite(BIN1_PIN, direction);
   digitalWrite(BIN2_PIN, !direction);
+
   //set speed motor 1
   analogWrite(PWMA_PIN, right_speed);
   //set speed motor 2
@@ -454,6 +465,7 @@ color_type get_colour()
   byte val = analogRead(LINESENSOR_PIN);
   Serial.print("LINE SENSOR: ");
   Serial.println(val);
+
   if (val > LINETHRESHOLD)
   {
     return BLACK;
@@ -465,6 +477,7 @@ void show_movement_values() {
   switch (movement) {
     case STRAIGHT:
       if (straight_direction == STRAIGHT_FORWARD)
+
         Serial.println("FORWARDING");
       else
         Serial.println("BACKWARDING");
@@ -494,7 +507,6 @@ void show_movement_values() {
 //It returns true if the robot has reached the menu, otherwise false
 bool reach_the_menu() {
   bool menu_reached;
-
   //set spin movement
   movement = TURN;
   turn_direction = TURN_FORWARD;
@@ -515,11 +527,13 @@ bool reach_the_menu() {
       menu_reached = false;
   }
 
+
   return menu_reached;
 }
 
 //It returns true if the robot has reached the black line, otherwise false
 bool reach_the_line(movement_type type_of_movement) {
+
   bool line_reached;
 
   if (get_colour() == WHITE) {
@@ -538,6 +552,7 @@ bool reach_the_line(movement_type type_of_movement) {
       speeds[0] = LOW_SPEED;
       speeds[1] = LOW_SPEED;
     }
+
   }
   else {
     line_reached = true;
@@ -546,6 +561,7 @@ bool reach_the_line(movement_type type_of_movement) {
       speeds[0] = 0;
       speeds[1] = 0;
     }
+
   }
   return line_reached;
 }
@@ -558,6 +574,7 @@ void follow_the_line() {
 //It calculates position[set point] depending on KP
 void cal_pid() {
   error_value = (analogRead(LINESENSOR_PIN) - LINE_FOLLOWING_SET_POINT);
+
 }
 
 //It computes the error to be corrected and sets the motors speeds
@@ -567,6 +584,7 @@ void pid_turn() {
   }
   if (error_value > 0) {
     error_value = MEDIUM_SPEED;
+
   }
 
   // If error_value is less than -1 calculate right turn speed values, otherwise calculate left turn values
@@ -590,6 +608,7 @@ void pid_turn() {
     Serial.println("steering left...");
   else
     Serial.println("steering right...");
+
 }
 
 void menu_walking() {
@@ -611,6 +630,7 @@ void menu_walking() {
     speeds[0] = LOW_SPEED;
     speeds[1] = HIGH_SPEED;
   }
+
   else if (get_colour() == BLACK) {
     Serial.println("Region to avoid!!!!");
     //it is the first time I have encountered the colour to be avoided, I have to start the timer
@@ -675,4 +695,5 @@ void menu_walking() {
       need_to_start_the_ostacle_timer  = true;
     //**********************************************************************************************************************************************
   */
+
 }
