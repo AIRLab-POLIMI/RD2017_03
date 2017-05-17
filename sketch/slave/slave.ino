@@ -230,28 +230,30 @@ void loop() {
 
     case MENU_REACHING:
       Serial.println("MENU_REACHING");
-      if (reach_the_menu() == false) {
-        //init the menu reaching variables
-        start_to_count = true;
-        steps_beyond_the_line = 0;
-      }
+
       if (start_to_count) {
         if (reach_the_menu()) {
-          steps_beyond_the_line++;
+          steps_on_menu++;
           Serial.print("START TO COUNT - STEP #");
-          Serial.println(steps_beyond_the_line);
+          Serial.println(steps_on_menu);
         }
+      }else{
+          //init the menu reaching variables
+          start_to_count = true;
+          steps_on_menu = 0;
       }
-      if (steps_beyond_the_line == 3) {
+      
+      if (steps_on_menu == 3) {
         //reset the line reaching variables
         start_to_count = false;
-        steps_beyond_the_line = 0;
+        steps_on_menu = 0;
 
-        previous_state = MENU_REACHING;
         if (previous_state == LINE_REACHING)
           state = LINE_FOLLOWING;
         else
           state = MENU_WALKING;
+
+        previous_state = MENU_REACHING;
       }
       break;
 
@@ -266,7 +268,7 @@ void loop() {
       previous_state = SCARING;
       state = LINE_REACHING;
       break;
-      
+
     case LINE_REACHING:
       Serial.println("LINE_REACHING");
       if (reach_the_line(STRAIGHT)) {
@@ -491,29 +493,20 @@ bool reach_the_menu() {
   bool menu_reached;
 
   //set spin movement
-  movement = TURN;
-  turn_direction = TURN_FORWARD;
+  movement = SPIN;
+  spin_direction = COUNTER_CLOCKWISE;
   speeds[0] = LOW_SPEED;
   speeds[1] = 0;
 
-  //I'm steering TO_THE_RIGHT, so I have to cross the black line which is on my left
-  if (get_colour() == BLACK) {
-    line_crossed = true;
-    steps_on_menu = 0;
-  }
-
-
-  if (line_crossed) {
-    if (get_colour() == WHITE)
-      menu_reached = true;
-    else
-      menu_reached = false;
-  }
+  if (get_colour() == WHITE)
+    menu_reached = true;
+  else
+    menu_reached = false;
 
   return menu_reached;
 }
 
-void shell_popup(){
+void shell_popup() {
   //something similar to sweep
 }
 
